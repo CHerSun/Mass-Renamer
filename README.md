@@ -17,6 +17,8 @@ You are free to use it as you wish. Any suggestions or pull requests are welcome
 
 `mren` is the short name for Mass Renamer. `mren` looks to be unique enough, so that it shouldn't cause overlaps with other commands.
 
+You can download the latest compiled executable from [Releases](https://github.com/CHerSun/Mass-Renamer/releases/latest) or compile yourself (see below). Put executable anywhere you like on your PATH variable.
+
 `mren` needs arguments:
 
 - folder where to look for files (`.` for the current folder),
