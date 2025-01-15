@@ -67,7 +67,7 @@ namespace Mass_Renamer
 
         /// <summary> Convert a sourceMask pattern string to a regex string </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
-        static string SourceToRegexPattern(string pattern)
+        static string Pattern_SourceToRegex(string pattern)
         {
             // HACK: This is dumb and ugly, but we do this only once per run and I don't know how to do it better currently.
             // TODO: Think of a better solution.
@@ -142,7 +142,7 @@ namespace Mass_Renamer
 
         /// <summary> Convert a renamePattern string to a regex string </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
-        static string TargetToRegexPattern(string pattern)
+        static string Pattern_RenameToRegex(string pattern)
         {
             // HACK: This is dumb and ugly, but we do this only once and I don't know how to do it better currently.
             // TODO: Think of a better solution.
@@ -230,15 +230,18 @@ namespace Mass_Renamer
             HashSet<DirectoryInfo> createdFolders = [];
             HashSet<string> renamedFiles = [];
 
-            var renamePatternRegexString = isRegex ? renamePattern : TargetToRegexPattern(renamePattern);
-            var sourceMaskRegexString = isRegex ? sourceMask : SourceToRegexPattern(sourceMask);
+            var renamePatternRegexString = isRegex ? renamePattern : Pattern_RenameToRegex(renamePattern);
+            var sourceMaskRegexString = isRegex ? sourceMask : Pattern_SourceToRegex(sourceMask);
             // TODO: Add RegexOptions flags control to CommandLine Options
             var sourceMaskRegex = new Regex($"^{sourceMaskRegexString}$", RegexOptions.IgnoreCase);
 
             Console.Write($"Scanning for files in \"{targetFolder}\"");
             if (recursive)
                 Console.Write(" recursively");
-            Console.WriteLine($", using patterns \"{sourceMask}\" ---> \"{renamePattern}\".");
+            if (apply)
+                Console.WriteLine($", using patterns \"{sourceMask}\" ---> \"{renamePattern}\".");
+            else
+                Console.WriteLine($", using patterns \"{sourceMask}\" ···> \"{renamePattern}\" (DRY RUN).");
 
             bool firstMatch = true;
             int maxLenSource = 0;
@@ -273,7 +276,7 @@ namespace Mass_Renamer
                     if (isDuplicate)
                         fileDuplicates++;
 
-                    if (firstMatch)
+                    if (firstMatch && !apply)
                     {
                         Console.WriteLine();
                         Console.WriteLine("Sample match:");
