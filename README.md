@@ -14,7 +14,11 @@ You are free to use it as you wish. Any suggestions or pull requests are welcome
 
 ## How to use
 
-You can download the latest compiled executable from [Releases](https://github.com/CHerSun/Mass-Renamer/releases/latest) or compile yourself (see below). Put executable anywhere you like on your PATH variable. In console call `mren` with arguments:
+Requirements:
+
+- .NET runtime 8.0 or .NET desktop runtime 8.0. For Windows it can be downloaded from [Microsoft site](https://dotnet.microsoft.com/en-us/download/dotnet/8.0).
+
+You can download the latest compiled executable of Mass Renamer from [Releases](https://github.com/CHerSun/Mass-Renamer/releases/latest) or compile yourself (see below). Put executable anywhere you like on your PATH variable. In console call `mren` with arguments:
 
 - folder where to look for files (`.` for the current folder),
 - source mask (see below),
