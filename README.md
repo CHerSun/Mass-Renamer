@@ -5,9 +5,10 @@ Mass Renamer is a simple console tool to bulk rename files using either simple p
 My workflows often produce quite a lot of similarly named files, which I need to rename using a pattern only, not file properties. Doing that manually is tedious.
 
 There are quite a lot of tools for bulk renaming on Windows. Problem is:
- - they are too difficult, with miriad of options, which makes them difficult to use and set up, especially so for small simple renamings
- - most of them are GUI oriented - that's not always a desirable thing
- - I wanted something as simple as possible, keeping it repeatable.
+
+- they are quite complex, with myriad of options, which makes them difficult to use and set up, especially so for simple renaming
+- most of them are GUI oriented - that's not always a desirable thing
+- I wanted something as simple as possible, keeping it repeatable.
 
 You are free to use it as you wish. Any suggestions or pull requests are welcome.
 
@@ -29,6 +30,7 @@ For source mask and rename pattern - there are 2 modes:
 
 - simple pattern mode (default):
   - uses substitutions:
+    - `%A` ... `%Z` - any number of any characters, greedy; remembers what it matched to be used in rename pattern;
     - `%a` ... `%z` - any number of any characters, ungreedy; remembers what it matched to be used in rename pattern;
     - `%0` ... `%9` - 1 or more digits, greedy; remembers what it matched to be used in rename pattern;
     - `*` - any number of any characters, discarded, i.e. cannot be used in rename pattern;
@@ -41,7 +43,7 @@ For source mask and rename pattern - there are 2 modes:
 
 In both modes we must match a full relative (to target folder) name string, so start (`^`) & end (`$`) anchors are added in the background. You don't need to add them.
 
-Also, case INsensitive matching is used, hard-coded for now. Can be overriden with Regex Options flags right in the Source pattern (see [Specify options - inline](https://learn.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-options#specify-options)).
+For file names matching case INsensitive mode is used. This can be overriden with inline Regex Options flags in the Source pattern (see [Specify options - inline](https://learn.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-options#specify-options)).
 
 ### Example 1 - simple pattern
 
@@ -113,11 +115,11 @@ The only difference is that we now have full regex power (well, complexity too).
 
 ## Syntax
 
-`mren` syntax help that you can get via the program itself:
+`mren` has built-in syntax help that you can get via the program itself by calling either with no arguments, or by using `-h` option.
 
-```
+```text
 Description:
-  Mass Renamer - a tool to rename files in bulk using either glob-like or regex patterns.
+  Mass Renamer - a tool to rename files in bulk using either simple or regex patterns.
 
 Usage:
   mren <TargetFolder> <SourceMask> <RenamePattern> [options]
@@ -125,12 +127,21 @@ Usage:
 Arguments:
   <TargetFolder>   The target folder where to rename files. Relative and absolute paths could be used.
   <SourceMask>     The source mask for matching files.
-                   In glob-like mode (default) pattern must match full filename. Pattern supports named matches in form of %A ... %Z for any text, %0 ... %9
-                   for numeric matches, %% for % escaping. You can also use '*' and '?' as wildcards, but those will be omitted in the result.
+
+                   In simple patterns mode (default) pattern must match full filename. Pattern supports named matches in form of:
+                   - %A ... %Z for any text greedy, can be used in RenamePattern
+                   - %a ... %z for any text UNgreedy, can be used in RenamePattern
+                   - %0 ... %9 for numeric matches, can be used in RenamePattern
+                   - %% for % escaping
+                   - * for any text, discarded
+                   - ? for any single character, discarded
+
                    Alternatively you can use '-p' flag and use C# regex pattern directly.
   <RenamePattern>  The pattern to rename files to.
-                   Glob-like pattern (default) allows to use named matches from SourceMask in form of %A ... %Z, %0 ... %9. You can use %% for % escaping in
-                   this mode.
+
+                   Simple pattern (default) allows to use named matches from SourceMask in form of %A ... %Z, %a ... %z, %0 ... %9 from SourceMask.
+                   You can use %% for % escaping in this mode.
+
                    Alternatively you can use '-p' flag and use C# regex substitutions directly.
 
 Options:
