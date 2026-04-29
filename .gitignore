@@ -401,3 +401,6 @@ FodyWeavers.xsd
 
 # Visual Studio debug run options
 **/Properties/launchSettings.json
+
+# VScode
+.vscode/

@@ -9,6 +9,12 @@ namespace Mass_Renamer
     {
         static int Main(string[] args)
         {
+            // Check for test mode
+            if (args.Length == 1 && (args[0] == "-t" || args[0] == "--test"))
+            {
+                return Tests.PatternTests.RunAllTests();
+            }
+
             // Define options
             var applyOption = new Option<bool>(
                                     ["--apply", "-y"],
@@ -62,53 +68,81 @@ namespace Mass_Renamer
         }
 
         /// <summary> Convert a sourceMask pattern string to a regex string </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
+        /// <exception cref="ArgumentException">Thrown when an invalid pattern is encountered</exception>
         static string Pattern_SourceToRegex(string pattern)
         {
             // Escape the pattern first, then use regex to replace our placeholders in one pass
             string escaped = Regex.Escape(pattern);
 
-            return Regex.Replace(escaped, @"%([A-Za-z0-9])|([*?])|%", m =>
+            return Regex.Replace(escaped, @"%(%)|%([a-z])|%([A-Z])|%([0-9])|(\\[*?])|%(.)", m =>
             {
-                // %[A-Za-z0-9] - named placeholders like %A, %a, %0
+                // %% - escaped percent
                 if (m.Groups[1].Success)
+                    return "%";
+                // %[a-z] - lowercase = non-greedy capturing group
+                if (m.Groups[2].Success)
                 {
-                    char c = m.Groups[1].Value[0];
-                    bool isUpper = char.IsUpper(c);
-                    bool isDigit = char.IsDigit(c);
-
-                    if (isDigit)
-                        return $"(?<d{c}>\\d+)";
-                    // Uppercase = greedy, lowercase = non-greedy
+                    char c = m.Groups[2].Value[0];
                     return $"(?<{c}>.*?)";
                 }
-                // [*?] - wildcards
-                if (m.Groups[2].Success)
-                    return m.Value == "*" ? ".*?" : ".";
-                // %% - escaped percent
-                return "%";
+                // %[A-Z] - uppercase = greedy capturing group
+                if (m.Groups[3].Success)
+                {
+                    char c = m.Groups[3].Value[0];
+                    return $"(?<{c}>.*)";
+                }
+                // %[0-9] - digits = named group capturing digits only
+                if (m.Groups[4].Success)
+                {
+                    char c = m.Groups[4].Value[0];
+                    return $"(?<d{c}>\\d+)";
+                }
+                // \\[*?] - escaped wildcards (after Regex.Escape, * becomes \*, ? becomes \?)
+                if (m.Groups[5].Success)
+                    return m.Value == "\\*" ? ".*" : ".";
+                // %X - any other character after % is invalid
+                if (m.Groups[6].Success)
+                    throw new ArgumentException($"Invalid placeholder '%{m.Groups[6].Value}' in source mask. Valid placeholders: %A-%Z (greedy), %a-%z (non-greedy), %0-%9 (digits), %% (escaped percent), * (any), ? (single).");
+                // Should never reach here
+                throw new ArgumentException($"Unknown pattern: {m.Value}");
             });
         }
 
         /// <summary> Convert a renamePattern string to a regex string </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
+        /// <exception cref="ArgumentException">Thrown when an invalid pattern is encountered</exception>
         static string Pattern_RenameToRegex(string pattern)
         {
             // Escape $ and \ for regex replacement, then use regex to replace placeholders in one pass
             string result = pattern.Replace("$", "$$").Replace(@"\", @"\\");
 
-            return Regex.Replace(result, @"%([A-Za-z0-9])|%%", m =>
+            return Regex.Replace(result, @"%(%)|%([a-z])|%([A-Z])|%([0-9])|%(.)", m =>
             {
-                // %[A-Za-z0-9] - named placeholders
+                // %% - escaped percent
                 if (m.Groups[1].Success)
+                    return "%";
+                // %[a-z] - lowercase = non-greedy reference
+                if (m.Groups[2].Success)
                 {
-                    char c = m.Groups[1].Value[0];
-                    if (char.IsDigit(c))
-                        return $"${{d{c}}}";
+                    char c = m.Groups[2].Value[0];
                     return $"${{{c}}}";
                 }
-                // %% - escaped percent
-                return "%";
+                // %[A-Z] - uppercase = greedy reference
+                if (m.Groups[3].Success)
+                {
+                    char c = m.Groups[3].Value[0];
+                    return $"${{{c}}}";
+                }
+                // %[0-9] - digits = digit group reference
+                if (m.Groups[4].Success)
+                {
+                    char c = m.Groups[4].Value[0];
+                    return $"${{d{c}}}";
+                }
+                // %X - any other character after % is invalid
+                if (m.Groups[5].Success)
+                    throw new ArgumentException($"Invalid placeholder '%{m.Groups[5].Value}' in rename pattern. Valid placeholders: %A-%Z, %a-%z, %0-%9, %% (escaped percent).");
+                // Should never reach here
+                throw new ArgumentException($"Unknown pattern: {m.Value}");
             });
         }
 
@@ -128,8 +162,20 @@ namespace Mass_Renamer
             HashSet<DirectoryInfo> createdFolders = [];
             HashSet<string> renamedFiles = [];
 
-            var renamePatternRegexString = isRegex ? renamePattern : Pattern_RenameToRegex(renamePattern);
-            var sourceMaskRegexString = isRegex ? sourceMask : Pattern_SourceToRegex(sourceMask);
+            string renamePatternRegexString;
+            string sourceMaskRegexString;
+            try
+            {
+                renamePatternRegexString = isRegex ? renamePattern : Pattern_RenameToRegex(renamePattern);
+                sourceMaskRegexString = isRegex ? sourceMask : Pattern_SourceToRegex(sourceMask);
+            }
+            catch (ArgumentException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
+                return 4;
+            }
             // TODO: Add RegexOptions flags control to CommandLine Options
             var sourceMaskRegex = new Regex($"^{sourceMaskRegexString}$", RegexOptions.IgnoreCase);
 
