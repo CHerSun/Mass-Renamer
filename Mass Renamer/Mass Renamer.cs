@@ -16,7 +16,7 @@ namespace Mass_Renamer
             var recursiveOption = new Option<bool>(
                                     ["--recursive", "-r"],
                                     "Process files recursively (with sub-folders).\n"
-                                    + "If specified - filename relative to TargetFolder will be used.\n"
+                                    + "If specified - filename relative to current folder will be used.\n"
                                     + "You SHOULD do a dry run (without '-y'), as logic is a bit different.");
             var isRegexOption = new Option<bool>(
                                     ["--pattern", "-p"],
@@ -26,9 +26,6 @@ namespace Mass_Renamer
                                     "Overwrite files during renaming, if target already exists.\n"
                                     + "CARE !!! DESTRUCTIVE !!!");
             // Define arguments
-            var targetFolderArgument = new Argument<DirectoryInfo>(
-                                    "TargetFolder",
-                                    "The target folder where to rename files. Relative and absolute paths could be used.");
             var sourceMaskArgument = new Argument<string>(
                                     "SourceMask",
                                     "The source mask for matching files.\n\n"
@@ -54,14 +51,13 @@ namespace Mass_Renamer
                 recursiveOption,
                 isRegexOption,
                 overwriteOption,
-                targetFolderArgument,
                 sourceMaskArgument,
                 renamePatternArgument
             };
 
             // Set actual handler and run the command
             rootCommand.SetHandler(Act,
-                                   applyOption, recursiveOption, isRegexOption, overwriteOption, targetFolderArgument, sourceMaskArgument, renamePatternArgument);
+                                   applyOption, recursiveOption, isRegexOption, overwriteOption, sourceMaskArgument, renamePatternArgument);
             return rootCommand.Invoke(args);
         }
 
@@ -69,158 +65,60 @@ namespace Mass_Renamer
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
         static string Pattern_SourceToRegex(string pattern)
         {
-            // HACK: This is dumb and ugly, but we do this only once per run and I don't know how to do it better currently.
-            // TODO: Think of a better solution.
-            return Regex.Escape(pattern)
-                .Replace(@"%", @"\%")
-                .Replace(@"\%\%", "%")
-                .Replace(@"\%A", @"(?<A>.*)")
-                .Replace(@"\%B", @"(?<B>.*)")
-                .Replace(@"\%C", @"(?<C>.*)")
-                .Replace(@"\%D", @"(?<D>.*)")
-                .Replace(@"\%E", @"(?<E>.*)")
-                .Replace(@"\%F", @"(?<F>.*)")
-                .Replace(@"\%G", @"(?<G>.*)")
-                .Replace(@"\%H", @"(?<H>.*)")
-                .Replace(@"\%I", @"(?<I>.*)")
-                .Replace(@"\%J", @"(?<J>.*)")
-                .Replace(@"\%K", @"(?<K>.*)")
-                .Replace(@"\%L", @"(?<L>.*)")
-                .Replace(@"\%M", @"(?<M>.*)")
-                .Replace(@"\%N", @"(?<N>.*)")
-                .Replace(@"\%O", @"(?<O>.*)")
-                .Replace(@"\%P", @"(?<P>.*)")
-                .Replace(@"\%Q", @"(?<Q>.*)")
-                .Replace(@"\%R", @"(?<R>.*)")
-                .Replace(@"\%S", @"(?<S>.*)")
-                .Replace(@"\%T", @"(?<T>.*)")
-                .Replace(@"\%U", @"(?<U>.*)")
-                .Replace(@"\%V", @"(?<V>.*)")
-                .Replace(@"\%W", @"(?<W>.*)")
-                .Replace(@"\%X", @"(?<X>.*)")
-                .Replace(@"\%Y", @"(?<Y>.*)")
-                .Replace(@"\%Z", @"(?<Z>.*)")
-                .Replace(@"\%a", @"(?<a>.*?)")
-                .Replace(@"\%b", @"(?<b>.*?)")
-                .Replace(@"\%c", @"(?<c>.*?)")
-                .Replace(@"\%d", @"(?<d>.*?)")
-                .Replace(@"\%e", @"(?<e>.*?)")
-                .Replace(@"\%f", @"(?<f>.*?)")
-                .Replace(@"\%g", @"(?<g>.*?)")
-                .Replace(@"\%h", @"(?<h>.*?)")
-                .Replace(@"\%i", @"(?<i>.*?)")
-                .Replace(@"\%j", @"(?<j>.*?)")
-                .Replace(@"\%k", @"(?<k>.*?)")
-                .Replace(@"\%l", @"(?<l>.*?)")
-                .Replace(@"\%m", @"(?<m>.*?)")
-                .Replace(@"\%n", @"(?<n>.*?)")
-                .Replace(@"\%o", @"(?<o>.*?)")
-                .Replace(@"\%p", @"(?<p>.*?)")
-                .Replace(@"\%q", @"(?<q>.*?)")
-                .Replace(@"\%r", @"(?<r>.*?)")
-                .Replace(@"\%s", @"(?<s>.*?)")
-                .Replace(@"\%t", @"(?<t>.*?)")
-                .Replace(@"\%u", @"(?<u>.*?)")
-                .Replace(@"\%v", @"(?<v>.*?)")
-                .Replace(@"\%w", @"(?<w>.*?)")
-                .Replace(@"\%x", @"(?<x>.*?)")
-                .Replace(@"\%y", @"(?<y>.*?)")
-                .Replace(@"\%z", @"(?<z>.*?)")
-                .Replace(@"\%0", @"(?<d0>\d+)")
-                .Replace(@"\%1", @"(?<d1>\d+)")
-                .Replace(@"\%2", @"(?<d2>\d+)")
-                .Replace(@"\%3", @"(?<d3>\d+)")
-                .Replace(@"\%4", @"(?<d4>\d+)")
-                .Replace(@"\%5", @"(?<d5>\d+)")
-                .Replace(@"\%6", @"(?<d6>\d+)")
-                .Replace(@"\%7", @"(?<d7>\d+)")
-                .Replace(@"\%8", @"(?<d8>\d+)")
-                .Replace(@"\%9", @"(?<d9>\d+)")
-                .Replace(@"\*", @".*?")
-                .Replace(@"\?", @".");
+            // Escape the pattern first, then use regex to replace our placeholders in one pass
+            string escaped = Regex.Escape(pattern);
+
+            return Regex.Replace(escaped, @"%([A-Za-z0-9])|([*?])|%", m =>
+            {
+                // %[A-Za-z0-9] - named placeholders like %A, %a, %0
+                if (m.Groups[1].Success)
+                {
+                    char c = m.Groups[1].Value[0];
+                    bool isUpper = char.IsUpper(c);
+                    bool isDigit = char.IsDigit(c);
+
+                    if (isDigit)
+                        return $"(?<d{c}>\\d+)";
+                    // Uppercase = greedy, lowercase = non-greedy
+                    return $"(?<{c}>.*?)";
+                }
+                // [*?] - wildcards
+                if (m.Groups[2].Success)
+                    return m.Value == "*" ? ".*?" : ".";
+                // %% - escaped percent
+                return "%";
+            });
         }
 
         /// <summary> Convert a renamePattern string to a regex string </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1192:Unnecessary usage of verbatim string literal", Justification = "<Pending>")]
         static string Pattern_RenameToRegex(string pattern)
         {
-            // HACK: This is dumb and ugly, but we do this only once and I don't know how to do it better currently.
-            // TODO: Think of a better solution.
-            return pattern
-                .Replace(@"$", @"$$")
-                .Replace(@"\", @"\\")
-                .Replace(@"%", @"\%")
-                .Replace(@"\%\%", "%")
-                .Replace(@"\%A", @"${A}")
-                .Replace(@"\%B", @"${B}")
-                .Replace(@"\%C", @"${C}")
-                .Replace(@"\%D", @"${D}")
-                .Replace(@"\%E", @"${E}")
-                .Replace(@"\%F", @"${F}")
-                .Replace(@"\%G", @"${G}")
-                .Replace(@"\%H", @"${H}")
-                .Replace(@"\%I", @"${I}")
-                .Replace(@"\%J", @"${J}")
-                .Replace(@"\%K", @"${K}")
-                .Replace(@"\%L", @"${L}")
-                .Replace(@"\%M", @"${M}")
-                .Replace(@"\%N", @"${N}")
-                .Replace(@"\%O", @"${O}")
-                .Replace(@"\%P", @"${P}")
-                .Replace(@"\%Q", @"${Q}")
-                .Replace(@"\%R", @"${R}")
-                .Replace(@"\%S", @"${S}")
-                .Replace(@"\%T", @"${T}")
-                .Replace(@"\%U", @"${U}")
-                .Replace(@"\%V", @"${V}")
-                .Replace(@"\%W", @"${W}")
-                .Replace(@"\%X", @"${X}")
-                .Replace(@"\%Y", @"${Y}")
-                .Replace(@"\%Z", @"${Z}")
-                .Replace(@"\%a", @"${a}")
-                .Replace(@"\%b", @"${b}")
-                .Replace(@"\%c", @"${c}")
-                .Replace(@"\%d", @"${d}")
-                .Replace(@"\%e", @"${e}")
-                .Replace(@"\%f", @"${f}")
-                .Replace(@"\%g", @"${g}")
-                .Replace(@"\%h", @"${h}")
-                .Replace(@"\%i", @"${i}")
-                .Replace(@"\%j", @"${j}")
-                .Replace(@"\%k", @"${k}")
-                .Replace(@"\%l", @"${l}")
-                .Replace(@"\%m", @"${m}")
-                .Replace(@"\%n", @"${n}")
-                .Replace(@"\%o", @"${o}")
-                .Replace(@"\%p", @"${p}")
-                .Replace(@"\%q", @"${q}")
-                .Replace(@"\%r", @"${r}")
-                .Replace(@"\%s", @"${s}")
-                .Replace(@"\%t", @"${t}")
-                .Replace(@"\%u", @"${u}")
-                .Replace(@"\%v", @"${v}")
-                .Replace(@"\%w", @"${w}")
-                .Replace(@"\%x", @"${x}")
-                .Replace(@"\%y", @"${y}")
-                .Replace(@"\%z", @"${z}")
-                .Replace(@"\%0", @"${d0}")
-                .Replace(@"\%1", @"${d1}")
-                .Replace(@"\%2", @"${d2}")
-                .Replace(@"\%3", @"${d3}")
-                .Replace(@"\%4", @"${d4}")
-                .Replace(@"\%5", @"${d5}")
-                .Replace(@"\%6", @"${d6}")
-                .Replace(@"\%7", @"${d7}")
-                .Replace(@"\%8", @"${d8}")
-                .Replace(@"\%9", @"${d9}")
-                .Replace(@"\%", @"%");
+            // Escape $ and \ for regex replacement, then use regex to replace placeholders in one pass
+            string result = pattern.Replace("$", "$$").Replace(@"\", @"\\");
+
+            return Regex.Replace(result, @"%([A-Za-z0-9])|%%", m =>
+            {
+                // %[A-Za-z0-9] - named placeholders
+                if (m.Groups[1].Success)
+                {
+                    char c = m.Groups[1].Value[0];
+                    if (char.IsDigit(c))
+                        return $"${{d{c}}}";
+                    return $"${{{c}}}";
+                }
+                // %% - escaped percent
+                return "%";
+            });
         }
 
         /// <summary> Take action with the given arguments </summary>
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        async static Task<int> Act(bool apply, bool recursive, bool isRegex, bool overwrite, DirectoryInfo targetFolder, string sourceMask, string renamePattern)
+        async static Task<int> Act(bool apply, bool recursive, bool isRegex, bool overwrite, string sourceMask, string renamePattern)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
+            var targetFolder = new DirectoryInfo(Environment.CurrentDirectory);
+
             if (!targetFolder.Exists)
             {
                 Console.WriteLine($"Folder \"{targetFolder}\" was not found.");
@@ -266,7 +164,7 @@ namespace Mass_Renamer
                     // TODO: Ensure substitution groups used in renamePattern are present in sourceMask
                     // Currently they are just printed as "${C}", for example, if not present in the sourceMask
                     var newFileName = sourceMaskRegex.Replace(relativePath, renamePatternRegexString);
-                    var newFilePath = Path.Combine(targetFolder.FullName, newFileName);
+                    var newFilePath = Path.Combine(Environment.CurrentDirectory, newFileName);
 
                     var newFileNameDisplay = $"\"{newFileName}\"";
                     maxLenNew = Math.Max(maxLenNew, newFileNameDisplay.Length);
