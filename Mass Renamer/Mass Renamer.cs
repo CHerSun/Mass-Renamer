@@ -141,23 +141,19 @@ namespace Mass_Renamer
             else
                 Console.WriteLine($", using patterns \"{sourceMask}\" ···> \"{renamePattern}\" (DRY RUN).");
 
-            bool firstMatch = true;
+            // Pre-scan: collect matched files and calculate max lengths
+            var files = Directory.GetFiles(targetFolder.FullName, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+
+            var matchedFiles = new List<(string File, string RelativePath, string NewFileName, string NewFilePath, bool IsDuplicate)>();
             int maxLenSource = 0;
             int maxLenNew = 0;
-            int filesRenamed = 0;
-            int filesMatched = 0;
-            int fileErrors = 0;
-            int fileDuplicates = 0;
 
-            var files = Directory.GetFiles(targetFolder.FullName, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
             foreach (var file in files)
             {
                 var relativePath = Path.GetRelativePath(targetFolder.FullName, file);
                 var match = sourceMaskRegex.Match(relativePath);
                 if (match.Success)
                 {
-                    filesMatched++;
-
                     var relativePathDisplay = $"\"{relativePath}\"";
                     maxLenSource = Math.Max(maxLenSource, relativePathDisplay.Length);
 
@@ -171,25 +167,39 @@ namespace Mass_Renamer
 
                     var isDuplicate = renamedFiles.Contains(newFilePath);
                     renamedFiles.Add(newFilePath);
-                    if (isDuplicate)
-                        fileDuplicates++;
 
-                    if (firstMatch && !apply)
-                    {
-                        Console.WriteLine();
-                        Console.WriteLine("Sample match:");
-                        Console.WriteLine($"  {relativePathDisplay}");
-                        for (int i = 1; i < match.Groups.Count; i++)
-                        {
-                            Console.Write($"  {i}: ");
-                            Console.Write($"{match.Groups[i].Name} = ");
-                            Console.WriteLine($"\"{match.Groups[i].Value}\"");
-                        }
+                    matchedFiles.Add((file, relativePath, newFileName, newFilePath, isDuplicate));
+                }
+            }
 
-                        Console.WriteLine();
-                        Console.WriteLine(apply ? "Renaming files:" : "Would rename files:");
-                        firstMatch = false;
-                    }
+            // Action phase: process matched files
+            int filesRenamed = 0;
+            int fileErrors = 0;
+            int fileDuplicates = matchedFiles.Count(f => f.IsDuplicate);
+
+            if (matchedFiles.Count > 0)
+            {
+                var firstMatch = matchedFiles[0];
+                var sampleMatch = sourceMaskRegex.Match(firstMatch.RelativePath);
+
+                Console.WriteLine();
+                Console.WriteLine("Sample match:");
+                Console.WriteLine($"  \"{firstMatch.RelativePath}\"");
+                for (int i = 1; i < sampleMatch.Groups.Count; i++)
+                {
+                    Console.Write($"  {i}: ");
+                    Console.Write($"{sampleMatch.Groups[i].Name} = ");
+                    Console.WriteLine($"\"{sampleMatch.Groups[i].Value}\"");
+                }
+
+                Console.WriteLine();
+                Console.WriteLine(apply ? "Renaming files:" : "Would rename files:");
+
+                foreach (var matched in matchedFiles)
+                {
+                    var relativePathDisplay = $"\"{matched.RelativePath}\"";
+                    var newFileNameDisplay = $"\"{matched.NewFileName}\"";
+
                     Console.Write($"  {relativePathDisplay.PadRight(maxLenSource)} ");
 
                     if (apply)
@@ -197,19 +207,19 @@ namespace Mass_Renamer
                         try
                         {
                             // Create parent folders if needed. Only once per folder.
-                            DirectoryInfo parentFolder = new(Path.GetDirectoryName(newFilePath)!);
+                            DirectoryInfo parentFolder = new(Path.GetDirectoryName(matched.NewFilePath)!);
                             if (!createdFolders.Contains(parentFolder) && !parentFolder.Exists)
                                 parentFolder.Create();
                             createdFolders.Add(parentFolder);
 
                             // Try to rename the file
-                            File.Move(file, newFilePath, overwrite);
+                            File.Move(matched.File, matched.NewFilePath, overwrite);
                             filesRenamed++;
 
                             // Report success
                             Console.ForegroundColor = ConsoleColor.Green;
                             Console.Write("---> ");
-                            if (isDuplicate)
+                            if (matched.IsDuplicate)
                             {
                                 Console.ForegroundColor = ConsoleColor.Yellow;
                                 Console.WriteLine($"{newFileNameDisplay} (duplicate)");
@@ -236,7 +246,7 @@ namespace Mass_Renamer
                         filesRenamed++;
                         // Show what would be done
                         Console.Write("···> ");
-                        if (isDuplicate)
+                        if (matched.IsDuplicate)
                         {
                             Console.ForegroundColor = ConsoleColor.Yellow;
                             Console.WriteLine($"{newFileNameDisplay} (duplicate)");
@@ -253,7 +263,7 @@ namespace Mass_Renamer
             // Report results summary
             Console.WriteLine();
             var renameText = apply ? "renamed" : "to be renamed";
-            Console.WriteLine($"Files matched: {filesMatched} out of {files.Length} found");
+            Console.WriteLine($"Files matched: {matchedFiles.Count} out of {files.Length} found");
             Console.WriteLine($"Files {renameText}: {filesRenamed}");
             if (fileDuplicates > 0)
             {
