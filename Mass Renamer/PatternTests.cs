@@ -1,9 +1,9 @@
-// Ignore Spelling: Renamer
-
 using System.Text.RegularExpressions;
 
 namespace Mass_Renamer.Tests
 {
+    // TODO: Consider using a proper unit testing framework like NUnit or xUnit for better test organization and reporting. This is a simple custom test runner for demonstration purposes.
+
     /// <summary>
     /// Unit tests for Pattern_SourceToRegex and Pattern_RenameToRegex functions.
     /// Run with: dotnet run -- -t

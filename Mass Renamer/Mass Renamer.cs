@@ -7,6 +7,8 @@ namespace Mass_Renamer
 {
     static class Program
     {
+        // TODO: Add rename pattern substitution runtime validation that they are present in source pattern
+
         static int Main(string[] args)
         {
             // Check for test mode
