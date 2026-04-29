@@ -20,13 +20,12 @@ Requirements:
 
 You can download the latest compiled executable of Mass Renamer from [Releases](https://github.com/CHerSun/Mass-Renamer/releases/latest) or compile yourself (see below). Put executable anywhere you like on your PATH variable. In console call `mren` with arguments:
 
-- folder where to look for files (`.` for the current folder),
 - source mask (see below),
 - rename pattern (see below).
 
 By default `mren` does a DRY RUN only, i.e. no action is actually taken. If you are satisfied with the preview of action - add `-y` option to apply.
 
-> NOTE: Currently there's no way to undo changes. If you are using recursive `-r` mode or overwrite `-w` mode - make sure to ALWAYS DO A DRY RUN first.
+> NOTE: ⚠⚠⚠ Currently there's no way to undo changes. If you are using recursive `-r` mode or overwrite `-w` mode - make sure to ALWAYS DO A DRY RUN first. ⚠⚠⚠
 
 ## Source mask and Rename pattern
 
@@ -47,23 +46,23 @@ For source mask and rename pattern - there are 2 modes:
 
 In both modes we must match a full relative (to target folder) name string, so start (`^`) & end (`$`) anchors are added in the background. You don't need to add them.
 
-For file names matching case INsensitive mode is used. This can be overriden with inline Regex Options flags in the Source pattern (see [Specify options - inline](https://learn.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-options#specify-options)).
+For file names matching case INsensitive mode is used. This can be overridden with inline Regex Options flags in the Source pattern (see [Specify options - inline](https://learn.microsoft.com/en-us/dotnet/standard/base-types/regular-expression-options#specify-options)).
 
 ### Example 1 - simple pattern
 
-Say we have a number of files called something like `Some title.mkv_snapshot_01.02.03.jpg` (MPC-HC screenshots). We want to rename those to `01.02.03 Some title.jpg` form for the sake of comparisson.
+Say we have a number of files called something like `Some title.mkv_snapshot_01.02.03.jpg` (MPC-HC screenshots). We want to rename those to `01.02.03 Some title.jpg` form for the sake of sorting order for manual inspection.
 
 FIRST STEP - We can do a preview:
 
 ```sh
-mren . "%A.mkv_snapshot_%B.jpg" "%B %A.jpg"
+mren "%A.mkv_snapshot_%B.jpg" "%B %A.jpg"
 ```
 
 > NOTE: if `mren.exe` is not on your PATH variable - you might need to either run as `./mren.exe` if the file is located in the current folder, or to use a full path to the executable.
 
 Which gives us output like:
 
-```
+```log
 Scanning for files in ".", using patterns "%A.mkv_snapshot_%B.jpg" ---> "%B %A.jpg".
 
 Sample match:
@@ -81,7 +80,7 @@ Files to be renamed: 1
 See the `Would rename files:` section for final results. Now we are satisfied with the preview and can add `-y` option to run the action:
 
 ```sh
-mren . '%A.mkv_snapshot_%B.jpg' '%B %A.jpg' -y
+mren '%A.mkv_snapshot_%B.jpg' '%B %A.jpg' -y
 ```
 
 ### Example 1 - regex patterns
@@ -91,7 +90,7 @@ We can do the same thing as before using regex pattern and substitution directly
 Let's do the dry run using regex (`-p` option):
 
 ```sh
-mren . "(.*)\.mkv_snapshot_(.*)\.jpg" '$2 $1.jpg' -p
+mren "(.*)\.mkv_snapshot_(.*)\.jpg" '$2 $1.jpg' -p
 ```
 
 > NOTE: Regex pattern in the command above is intentionally simplified to not use named caption groups. If you are an advanced regex user - you can use full power of C# flavor regex.
@@ -100,7 +99,7 @@ mren . "(.*)\.mkv_snapshot_(.*)\.jpg" '$2 $1.jpg' -p
 
 We'll get a similar output from regex:
 
-```
+```log
 Scanning for files in ".", using patterns "(.*)\.mkv_snapshot_(.*)\.jpg" ---> "$2 $1.jpg".
 
 Sample match:
@@ -126,7 +125,7 @@ Description:
   Mass Renamer - a tool to rename files in bulk using either simple or regex patterns.
 
 Usage:
-  mren <TargetFolder> <SourceMask> <RenamePattern> [options]
+  mren <SourceMask> <RenamePattern> [options]
 
 Arguments:
   <TargetFolder>   The target folder where to rename files. Relative and absolute paths could be used.
